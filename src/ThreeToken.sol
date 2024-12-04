@@ -22,7 +22,7 @@ import {FixedPointMathLib} from "solmate/src/utils/FixedPointMathLib.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {StateLibrary} from "@uniswap/v4-core/src/libraries/StateLibrary.sol";
-import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
+import {BeforeSwapDelta, BeforeSwapDeltaLibrary,toBeforeSwapDelta} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 
 import "v4-periphery/src/libraries/LiquidityAmounts.sol";
 
@@ -104,7 +104,7 @@ contract ThreeToken is BaseHook {
             afterSwap: false,
             beforeDonate: false,
             afterDonate: false,
-            beforeSwapReturnDelta: false,
+            beforeSwapReturnDelta: true,
             afterSwapReturnDelta: false,
             afterAddLiquidityReturnDelta: false,
             afterRemoveLiquidityReturnDelta: false
@@ -241,7 +241,7 @@ contract ThreeToken is BaseHook {
         return ThreeToken.beforeAddLiquidity.selector;
     }
 
-    function beforeSwap(address, PoolKey calldata key, IPoolManager.SwapParams calldata, bytes calldata)
+    function beforeSwap(address, PoolKey calldata key, IPoolManager.SwapParams calldata params, bytes calldata)
         external
         override
         returns (bytes4, BeforeSwapDelta, uint24)
@@ -253,7 +253,14 @@ contract ThreeToken is BaseHook {
             pool.hasAccruedFees = true;
         }
 
-        return (IHooks.beforeSwap.selector, BeforeSwapDeltaLibrary.ZERO_DELTA, 0);
+        int128 amountOut =2;
+
+          BeforeSwapDelta beforeSwapDelta = toBeforeSwapDelta(
+            int128(-params.amountSpecified), // So `specifiedAmount` = +100 (exact input : amout into poolManager )  or  -100 (exact output : amout outof poolManager )
+            int128(-amountOut) // Unspecified amount (output delta) = -100 (  amout out of poolManager )  / 100 ( amout into poolManager ) 
+        );
+
+        return (IHooks.beforeSwap.selector, beforeSwapDelta, 0);
     }
 
     function modifyLiquidity(PoolKey memory key, IPoolManager.ModifyLiquidityParams memory params)
